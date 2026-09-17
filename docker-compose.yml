@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 1. Relational Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: demo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: demo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cloudops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d demo_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. FastAPI Backend Service
+  backend:
+    build:
+      context: ../backend-practice
+      dockerfile: Dockerfile
+    container_name: demo-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://postgres:supersecretpassword@postgres:5432/demo_db
+      - JWT_SECRET=enterprise-dev-secret-key-2026
+      - APP_ENV=local-docker
+      - APP_VERSION=v1.0.0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - cloudops-net
+
+  # 3. NGINX Frontend Dashboard
+  frontend:
+    build:
+      context: ../frontend-practice
+      dockerfile: Dockerfile
+    container_name: demo-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - cloudops-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cloudops-net:
+    driver: bridge
