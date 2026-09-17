@@ -1,0 +1,52 @@
+name: Build & Push Backend to AWS ECR
+
+on:
+  repository_dispatch:
+    types: [trigger-backend]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image version tag (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Pull the application code from backend-practice repo
+      - name: Checkout Backend Application Repository
+        uses: actions/checkout@v4
+        with:
+          repository: fardin-254/backend-practice
+          ref: main
+
+      # 2. Authenticate to AWS using your GitHub Secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. Securely log in to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build the multi-stage Docker image and push to AWS
+      - name: Build, Tag, and Push Docker Image to ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: backend-practice
+          IMAGE_TAG: ${{ github.event.client_payload.version || github.event.inputs.version || 'v1.0.0' }}
+        run: |
+          echo "Building Docker image: $REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          docker build -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          
+          echo "Pushing images to AWS ECR..."
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
+          
+          echo "✅ Successfully deployed image to AWS ECR: $REGISTRY/$REPOSITORY:$IMAGE_TAG"
