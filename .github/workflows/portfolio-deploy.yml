@@ -15,6 +15,7 @@ jobs:
         with:
           repository: fardin-254/sokratix-portfolio
           ref: dev
+          token: ${{ secrets.GITPAT }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
