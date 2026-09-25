@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Application Code (sokratix-portfolio)
+      - name: Checkout Application Code (portfolio-practice)
         uses: actions/checkout@v4
         with:
-          repository: fardin-254/sokratix-portfolio
+          repository: fardin-254/portfolio-practice
           ref: dev
           token: ${{ secrets.GITPAT }}
 
@@ -31,7 +31,7 @@ jobs:
       - name: Build, tag, and push Docker image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: sokratix-portfolio
+          ECR_REPOSITORY: portfolio-practice
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build \
@@ -54,7 +54,7 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION || 'ap-south-1' }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
             # 2. Pull the newly pushed image
-            docker pull ${{ steps.login-ecr.outputs.registry }}/sokratix-portfolio:latest
+            docker pull ${{ steps.login-ecr.outputs.registry }}/portfolio-practice
 
             # 3. Write production environment file
             cat << 'EOF' > ~/.portfolio.env
