@@ -45,16 +45,23 @@ jobs:
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY
           script: |
-            # 1. Log in to AWS ECR on EC2
+            # 1. Authenticate Docker to AWS ECR on EC2
+            export AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"
+            export AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+            export AWS_DEFAULT_REGION="${{ secrets.AWS_REGION || 'ap-south-1' }}"
+            
             aws ecr get-login-password --region ${{ secrets.AWS_REGION || 'ap-south-1' }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
 
             # 2. Pull the newly pushed image
-            docker pull ${{ steps.login-ecr.outputs.registry }}/portfolio-practice
+            docker pull ${{ steps.login-ecr.outputs.registry }}/portfolio-practice:latest
 
             # 3. Write production environment file
             cat << 'EOF' > ~/.portfolio.env
@@ -70,13 +77,13 @@ jobs:
             docker stop portfolio || true
             docker rm portfolio || true
 
-            # 5. Start new container bound directly to Port 80 (HTTP)
+            # 5. Start new container on Port 80 (HTTP)
             docker run -d \
               --name portfolio \
               --restart always \
               -p 80:3000 \
               --env-file ~/.portfolio.env \
-              ${{ steps.login-ecr.outputs.registry }}/sokratix-portfolio:latest
+              ${{ steps.login-ecr.outputs.registry }}/portfolio-practice:latest
 
             # 6. Verify deployment
             docker ps
